@@ -1,7 +1,4 @@
-use std::{
-    io::stdout,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 use crossterm::{
     event::{poll, read, Event, KeyCode, KeyEvent},
