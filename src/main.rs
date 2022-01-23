@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    io::stdout,
+    time::{Duration, Instant},
+};
 
 use crossterm::{
     event::{poll, read, Event, KeyCode, KeyEvent},
@@ -9,32 +12,52 @@ use crossterm::{
 use snake::{Direction, Game};
 
 fn main() {
-    enable_raw_mode().expect("Could not enter raw mode");
     let mut game = Game::new();
-    game.print();
-    loop {
-        let start = Instant::now();
-        let mut direction = game.get_direction();
-        let interval = Duration::from_millis(200);
-        while start.elapsed() < interval {
-            if let Some(new_direction) = get_input(interval - start.elapsed(), game.get_direction())
-            {
-                direction = new_direction;
+    'running: loop {
+        enable_raw_mode().expect("Could not enter raw mode");
+        game.print();
+        loop {
+            let start = Instant::now();
+            let mut direction = game.get_direction();
+            let interval = Duration::from_millis(200);
+            while start.elapsed() < interval {
+                if let Some(new_direction) =
+                    get_input(interval - start.elapsed(), game.get_direction())
+                {
+                    direction = new_direction;
+                }
+            }
+            game.change_direction(direction);
+            let game_status = game.tick();
+            game.print();
+            if game_status.is_none() {
+                disable_raw_mode().ok();
+                println!("GAME OVER");
+                break;
+            } else if game_status.unwrap() {
+                disable_raw_mode().ok();
+                println!("YOU WON!");
+                break;
             }
         }
-        game.change_direction(direction);
-        let game_status = game.tick();
-        game.print();
-        if game_status.is_none() {
-            println!("GAME OVER");
-            break;
-        } else if game_status.unwrap() {
-            println!("YOU WON!");
-            break;
+        println!("Again?(y|n): ");
+        loop {
+            match read() {
+                Ok(Event::Key(KeyEvent {
+                    code: KeyCode::Char('y'),
+                    ..
+                })) => {
+                    game = Game::with_highscore(game.get_highscore());
+                    break;
+                }
+                Ok(Event::Key(KeyEvent {
+                    code: KeyCode::Char('n'),
+                    ..
+                })) => break 'running,
+                _ => (),
+            }
         }
     }
-    disable_raw_mode().ok();
-    println!();
 }
 
 fn get_input(timeout: Duration, current_direction: Direction) -> Option<Direction> {

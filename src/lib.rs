@@ -147,6 +147,7 @@ pub struct Game {
     field: Field,
     snake: Snake,
     score: u32,
+    highscore: u32,
 }
 
 impl Default for Game {
@@ -164,8 +165,15 @@ impl Game {
             field,
             snake: Snake::new(),
             score: 0,
+            highscore: 0,
         };
         game.spawn_fruit();
+        game
+    }
+
+    pub fn with_highscore(highscore: u32) -> Self {
+        let mut game = Game::new();
+        game.highscore = highscore;
         game
     }
 
@@ -195,7 +203,9 @@ impl Game {
     pub fn print(&self) {
         let mut stdout = stdout();
         self.field.print(&mut stdout);
-        println!("Score: {:>5}", self.score);
+        println!("Score:     {:>5}", self.score);
+        stdout.queue(cursor::MoveToColumn(0)).unwrap();
+        println!("Highscore: {:>5}", self.highscore);
         stdout.queue(cursor::MoveToColumn(0)).unwrap();
     }
 
@@ -204,6 +214,9 @@ impl Game {
     }
     pub fn get_direction(&self) -> Direction {
         self.snake.direction
+    }
+    pub fn get_highscore(&self) -> u32 {
+        self.highscore.max(self.score)
     }
 
     fn spawn_fruit(&mut self) -> bool {
