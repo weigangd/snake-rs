@@ -23,13 +23,18 @@ fn main() {
             }
         }
         game.change_direction(direction);
-        let has_ended = game.tick();
+        let game_status = game.tick();
         game.print();
-        if has_ended {
+        if game_status.is_none() {
+            println!("GAME OVER");
+            break;
+        } else if game_status.unwrap() {
+            println!("YOU WON!");
             break;
         }
     }
     disable_raw_mode().ok();
+    println!();
 }
 
 fn get_input(timeout: Duration, current_direction: Direction) -> Option<Direction> {

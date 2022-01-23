@@ -4,28 +4,34 @@ use crossterm::{
     QueueableCommand,
 };
 use rand::seq::IteratorRandom;
-use std::io::stdout;
+use std::io::{stdout, Stdout};
 
 const N: usize = 10;
 const N2: usize = N + 2;
 const N_POINTS: usize = N2 * N2;
 
 pub struct Field {
-    field: [isize; N_POINTS],
+    field: [i32; N_POINTS],
+}
+
+impl Default for Field {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Field {
     pub fn new() -> Self {
         let mut field = [0; N_POINTS];
         for p in field[..N2].iter_mut() {
-            *p = isize::MAX;
+            *p = i32::MAX;
         }
         for row in field[N2..N_POINTS - N2].chunks_exact_mut(N2) {
-            row[0] = isize::MAX;
-            row[N2 - 1] = isize::MAX;
+            row[0] = i32::MAX;
+            row[N2 - 1] = i32::MAX;
         }
         for p in field[N_POINTS - N2..].iter_mut() {
-            *p = isize::MAX;
+            *p = i32::MAX;
         }
         Self { field }
     }
@@ -36,7 +42,7 @@ impl Field {
         }
     }
 
-    pub fn set_point(&mut self, position: usize, value: isize) {
+    pub fn set_point(&mut self, position: usize, value: i32) {
         self.field[position] = value;
     }
 
@@ -44,11 +50,10 @@ impl Field {
         !self.field[position].is_positive()
     }
     pub fn is_fruit(&self, position: usize) -> bool {
-        self.field[position] == isize::MIN
+        self.field[position] == i32::MIN
     }
 
-    pub fn print(&self) {
-        let mut stdout = stdout();
+    pub fn print(&self, stdout: &mut Stdout) {
         stdout.queue(cursor::Hide).unwrap();
         stdout.queue(cursor::MoveTo(0, 0)).unwrap();
         stdout.queue(Clear(ClearType::All)).unwrap();
@@ -64,12 +69,10 @@ impl Field {
             for i in &row[1..N2 - 1] {
                 if i.is_positive() {
                     print!("\u{25A0} ");
+                } else if *i == i32::MIN {
+                    print!("\x1b[1;31m\u{25A0}\x1b[1;37m ");
                 } else {
-                    if *i == isize::MIN {
-                        print!("\x1b[1;31m\u{25A0}\x1b[1;37m ");
-                    } else {
-                        print!("  ");
-                    }
+                    print!("  ");
                 }
             }
             println!("\u{2503}");
@@ -80,7 +83,7 @@ impl Field {
             print!("\u{2501}\u{2501}");
         }
         print!("\u{2501}\u{251B}");
-        println!("");
+        println!();
         stdout.queue(cursor::MoveTo(0, N2 as u16)).unwrap();
     }
 }
@@ -95,19 +98,19 @@ pub enum Direction {
 
 impl Direction {
     pub fn is_opposite(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Up, Self::Down) => true,
-            (Self::Down, Self::Up) => true,
-            (Self::Left, Self::Right) => true,
-            (Self::Right, Self::Left) => true,
-            _ => false,
-        }
+        matches!(
+            (self, other),
+            (Self::Up, Self::Down)
+                | (Self::Down, Self::Up)
+                | (Self::Left, Self::Right)
+                | (Self::Right, Self::Left)
+        )
     }
 }
 
 pub struct Snake {
     direction: Direction,
-    length: isize,
+    length: i32,
     position: usize,
 }
 
@@ -143,6 +146,13 @@ impl Snake {
 pub struct Game {
     field: Field,
     snake: Snake,
+    score: u32,
+}
+
+impl Default for Game {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Game {
@@ -153,31 +163,40 @@ impl Game {
         let mut game = Game {
             field,
             snake: Snake::new(),
+            score: 0,
         };
         game.spawn_fruit();
         game
     }
 
-    pub fn tick(&mut self) -> bool {
+    pub fn tick(&mut self) -> Option<bool> {
         self.snake.make_move();
         let pos = self.snake.position;
+        let was_fruit = self.field.is_fruit(pos);
+        if !was_fruit {
+            self.field.make_turn();
+        }
+
         if self.field.is_valid(pos) {
-            if self.field.is_fruit(pos) {
+            if was_fruit {
                 self.snake.increase_length();
                 self.field.set_point(pos, self.snake.length);
-                self.spawn_fruit();
+                self.score += 10;
+                Some(self.spawn_fruit())
             } else {
-                self.field.make_turn();
                 self.field.set_point(pos, self.snake.length);
+                Some(false)
             }
-            false
         } else {
-            true
+            None
         }
     }
 
     pub fn print(&self) {
-        self.field.print();
+        let mut stdout = stdout();
+        self.field.print(&mut stdout);
+        println!("Score: {:>5}", self.score);
+        stdout.queue(cursor::MoveToColumn(0)).unwrap();
     }
 
     pub fn change_direction(&mut self, direction: Direction) {
@@ -187,15 +206,19 @@ impl Game {
         self.snake.direction
     }
 
-    fn spawn_fruit(&mut self) {
+    fn spawn_fruit(&mut self) -> bool {
         let mut rng = rand::thread_rng();
-        let fruit = self
+        if let Some(fruit) = self
             .field
             .field
             .iter_mut()
             .filter(|v| !v.is_positive())
             .choose(&mut rng)
-            .expect("game won");
-        *fruit = isize::MIN;
+        {
+            *fruit = i32::MIN;
+            false
+        } else {
+            true
+        }
     }
 }
