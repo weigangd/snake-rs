@@ -16,7 +16,7 @@ fn main() {
         loop {
             let start = Instant::now();
             let mut direction = game.get_direction();
-            let interval = Duration::from_millis(200);
+            let interval = Duration::from_millis(150);
             while start.elapsed() < interval {
                 if let Some(new_direction) =
                     get_input(interval - start.elapsed(), game.get_direction())
