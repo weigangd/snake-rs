@@ -54,7 +54,6 @@ impl Field {
     }
 
     pub fn print(&self, stdout: &mut Stdout) {
-        stdout.queue(cursor::Hide).unwrap();
         stdout.queue(cursor::MoveTo(0, 0)).unwrap();
         stdout.queue(Clear(ClearType::All)).unwrap();
         print!("\u{250F}");
@@ -202,19 +201,27 @@ impl Game {
 
     pub fn print(&self) {
         let mut stdout = stdout();
+        stdout.queue(cursor::Hide).unwrap();
         self.field.print(&mut stdout);
         println!("Score:     {:>5}", self.score);
         stdout.queue(cursor::MoveToColumn(0)).unwrap();
         println!("Highscore: {:>5}", self.highscore);
         stdout.queue(cursor::MoveToColumn(0)).unwrap();
+        stdout.queue(cursor::Show).unwrap();
     }
 
     pub fn change_direction(&mut self, direction: Direction) {
         self.snake.change_direction(direction);
     }
+
     pub fn get_direction(&self) -> Direction {
         self.snake.direction
     }
+
+    pub fn get_position(&self) -> usize {
+        self.snake.position
+    }
+
     pub fn get_highscore(&self) -> u32 {
         self.highscore.max(self.score)
     }
